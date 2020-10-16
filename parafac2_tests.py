@@ -10,6 +10,7 @@ from tensorly.decomposition import parafac2
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+import numpy.linalg as la
 
 
 tensor = tl.tensor(np.arange(24).reshape((3, 4, 2)), dtype=tl.float64)
@@ -19,7 +20,7 @@ tl.fold(unfolded, mode=0, shape=tensor.shape)
 
 
 num_spec = 2; #number of specimens
-num_samples = 5; #number of chromatograms
+num_samples = 10; #number of chromatograms
 
 #define and plot spectres
 freqs = 10;
@@ -72,10 +73,55 @@ for i in range(num_samples):
     
     Z = chromatograms[i];
     
-    surf = ax.plot_surface(X, Y, Z,
-                           linewidth=0, antialiased=False)
+    #surf = ax.plot_surface(X, Y, Z,
+    #                      linewidth=0, antialiased=False)
+
+best_err = np.inf
+decomposition = None
+
+for run in range(10):
+    print(f'Training model {run}...')
+    trial_decomposition, trial_errs = parafac2(chromatograms, num_samples, return_errors=True, tol=1e-8, n_iter_max=500, random_state=run)
+    print(f'Number of iterations: {len(trial_errs)}')
+    print(f'Final error: {trial_errs[-1]}')
+    if best_err > trial_errs[-1]:
+        best_err = trial_errs[-1]
+        err = trial_errs
+        decomposition = trial_decomposition
+    print('-------------------------------')
+print(f'Best model error: {best_err}')
+
+est_tensor = tl.parafac2_tensor.parafac2_to_tensor(decomposition)
+est_weights, (est_A, est_B, est_C) = tl.parafac2_tensor.apply_parafac2_projections(decomposition)
+est_A, est_projected_Bs, est_C = tl.parafac2_tensor.apply_parafac2_projections(decomposition)[1]
+sign = np.sign(est_A)
+est_A = np.abs(est_A)
+est_projected_Bs = sign[:, np.newaxis]*est_projected_Bs
 
 
-parafac2(chromatograms,2)
+est_A_normalised = est_A/la.norm(est_A, axis=0)
+est_Bs_normalised = [est_B/la.norm(est_B, axis=0) for est_B in est_projected_Bs]
+est_C_normalised = est_C/la.norm(est_C, axis=0)
 
+
+
+fig, axes = plt.subplots(num_spec, 3, figsize=(15, 3*num_spec+1))
+
+for r in range(1):
+    
+    # Plot true and estimated components for mode A
+    axes[r][0].plot(est_A_normalised,'--', label='Estimated')
+    
+    # Labels for the different components
+    axes[r][0].set_ylabel(f'Component {r}')
+
+    # Plot true and estimated components for mode C
+    axes[r][2].plot(est_C_normalised, '--')
+
+    # Get the signs so that we can flip the B mode factor matrices
+    A_sign = np.sign(est_A_normalised)
+
+
+print("meow")
+plt.figure()
 
