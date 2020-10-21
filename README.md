@@ -5,7 +5,6 @@ This repository contains Python code for the automatic alignment of chromatogram
 It uses the tensorly implementation of parafac2. 
 
 To install tensorly for python, follow instrcutions at http://tensorly.org/stable/installation.html;
-you will also need pickle for loading the tests.
 
 
 * Planned Features
