@@ -7,7 +7,7 @@ To install tensorly for python, follow instrcutions at http://tensorly.org/stabl
 
 To test the code, just run the python scripts. You will have to change the data folder to use the scripts for real data.
 
-* Planned Features
+* Planned Features (*bold* are implemented)
   * selection of informative UV-Vis spectral zones (user or automatic selection)
   * selection of informative, possibly non-uniform, time resolution (user or automatic selection)
   * time-partitioning of the chromatograms (user or automatic selection)
