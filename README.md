@@ -3,9 +3,9 @@ parafac2 in python for chromatogram analysis
 
 This repository contains Python code for the automatic alignment of chromatograms. 
 It uses the tensorly implementation of parafac2. 
-
 To install tensorly for python, follow instrcutions at http://tensorly.org/stable/installation.html;
 
+To test the code, just run the python scripts. You will have to change the data folder to use the scripts for real data.
 
 * Planned Features
   * selection of informative UV-Vis spectral zones (user or automatic selection)
