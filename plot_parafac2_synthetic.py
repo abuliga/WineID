@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Demonstration of PARAFAC2
+Demonstration of PARAFAC2 from the tensorly library
 =========================
-
-Example of how to use the PARAFAC2 algorithm.
-"""
 
 import numpy as np
 import numpy.linalg as la
@@ -12,23 +9,6 @@ import matplotlib.pyplot as plt
 import tensorly as tl
 from tensorly.decomposition import parafac2
 from scipy.optimize import linear_sum_assignment
-
-
-##############################################################################
-# Create synthetic tensor
-# -----------------------
-# Here, we create a random tensor that follows the PARAFAC2 constraints found
-# inx `(Kiers et al 1999)`_.
-# 
-# This particular tensor,
-# :math:`\mathcal{X} \in \mathbb{R}^{I\times J \times K}`, is a shifted
-# Kruskal tensor, that is, a tensor on the form:
-# 
-# .. math::
-#    \mathcal{X}_{ijk} = \sum_{r=1}^R A_{ir} B_{\sigma_i(j) r} C_{kr},
-# 
-# where :math:`\sigma_i` is a cyclic permutation of :math:`J` elements.
-
 
 # Set parameters
 true_rank = 3
