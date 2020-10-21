@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Demonstration of PARAFAC2
-=========================
-
-Example of how to use the PARAFAC2 algorithm. 
-This code is partially taken from http://tensorly.org/dev/auto_examples/decomposition/plot_parafac2.html#sphx-glr-auto-examples-decomposition-plot-parafac2-py
+Demonstration of PARAFAC2 with real data
 """
 
 import numpy as np
@@ -176,10 +172,6 @@ fig.legend(handles, labels, loc='upper center', ncol=2)
 ##############################################################################
 # Inspect the convergence rate
 # ----------------------------
-# It can be interesting to look at the loss plot to make sure that we have
-# converged to a stationary point. We skip the first iteration since the
-# initial loss often dominate the rest of the plot, making it difficult
-# to check for convergence.
 
 loss_fig, loss_ax = plt.subplots(figsize=(9, 9/1.6))
 loss_ax.plot(range(1, len(err)), err[1:])
@@ -192,19 +184,5 @@ loss_ax.set_xticks([1] + list(xticks[1:]))
 loss_ax.set_xlim(1, len(err))
 plt.tight_layout()
 plt.show()
-
-
-
-##############################################################################
-# References
-# ----------
-# 
-# .. _(Kiers et al 1999):
-# 
-# Kiers HA, Ten Berge JM, Bro R. *PARAFAC2—Part I. 
-# A direct fitting algorithm for the PARAFAC2 model.*
-# **Journal of Chemometrics: A Journal of the Chemometrics Society.**
-# 1999 May;13(3‐4):275-94. `(Online version)
-# <https://onlinelibrary.wiley.com/doi/abs/10.1002/(SICI)1099-128X(199905/08)13:3/4%3C275::AID-CEM543%3E3.0.CO;2-B>`_
 
 
