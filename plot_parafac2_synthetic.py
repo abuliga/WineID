@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Demonstration of PARAFAC2 from the tensorly library
+Demonstration of PARAFAC2 with synthetic data from the tensorly library
 =========================
 
 import numpy as np
