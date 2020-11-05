@@ -14,9 +14,11 @@ import math
 from scipy.optimize import linear_sum_assignment
 from io import StringIO  
 
-exp_info_names = ["Interval","Start Time","End Time", "Start Wavelength", "End Wavelength","Wavelength Axis Points", "Time Axis Points"];
+exp_info_names =["Interval","Start Time","End Time", "Start Wavelength", "End Wavelength","Wavelength Axis Points", "Time Axis Points"];
 
-#IMPORT PHASE
+folder = "my_folder";
+
+
 def import_chromatogram_from_txt(experiment, filename, frequencies = [], start_time = 0, end_time = math.inf):
     temp_data = [];
     experiment["info"] = {};
@@ -65,14 +67,15 @@ def import_chromatogram_from_txt(experiment, filename, frequencies = [], start_t
     experiment["data"] = np.array(temp_data);
     print("Experiment loaded. INFO: ",experiment["info"])
         
-folder = "C:/Users/Paolo/OneDrive/Desktop/seq_1/"; 
-
 files = [];
 for r, d, f in os.walk(folder):
     for file in f:
         if '.txt' in file:
-            files.append(os.path.join(r, file))
-
+            files.append(os.path.join(r, file));
+            
+##############################################################################
+            #IMPORT PHASE
+##############################################################################
 experiments = [];
 times = [];
 tensor = [];
@@ -91,15 +94,16 @@ for file in files:
 ##############################################################################
 # Fit a PARAFAC2 tensor
 # ---------------------
-# To avoid local minima, we initialise and fit 10 models and choose the one
+# To avoid local minima, we initialise and fit multiple models and choose the one
 # with the lowest error
 
 
 best_err = np.inf
 decomposition = None
 ranks = range(2,8)
+number_of_runs = 5;
 
-for run in range(3):
+for run in range(number_of_runs):
     for rank in ranks:
         print(f'Training model {run}...')
         print(f'Testing rank {rank}')
