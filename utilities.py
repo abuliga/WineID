@@ -1,0 +1,208 @@
+# -*- coding: utf-8 -*-
+"""
+Demonstration of PARAFAC2 with real data
+"""
+
+import numpy as np
+import numpy.linalg as la
+import matplotlib.pyplot as plt
+import tensorly as tl
+import os
+from tensorly.decomposition import parafac2
+import math
+
+
+
+
+
+exp_info_names =["Interval","Start Time","End Time", "Start Wavelength", "End Wavelength","Wavelength Axis Points", "Time Axis Points"];
+
+
+
+class chromatogram():
+    freqs = [];
+    info = {};
+    data = [];
+    def n_time(self):
+        return np.shape(self.data)[0];
+    def n_freqs(self):
+        return np.shape(self.data)[1];
+
+        
+class experiment():
+    freqs = [];
+    chromes = [];
+    
+    def __init__(self, freqs):
+        self.freqs = freqs;
+        
+    def n_chromes(self):
+        return len(self.chromes)
+    
+    def add_chrome(self, chrome):
+        if chrome.freqs == self.freqs:
+            self.chromes.append(chrome);
+        else:
+            print("Could not load chromatogram: frequencies don't match");
+    
+    def tensor(self):
+        return [chrome.data for chrome in self.chromes];
+    
+    
+def files_in_dir(folder):
+    files = [];
+    for r, d, f in os.walk(folder):
+        for file in f:
+            if '.txt' in file:
+                files.append(os.path.join(r, file));
+    return files;
+
+
+def import_chromatogram_from_txt(chrome, filename, frequencies = [], start_time = 0, end_time = math.inf, timestep = 1):
+    temp_data = [];
+    chrome.info["filename"] = filename;
+    with open(filename) as f:
+        #search for 3D data
+        line = ""
+        while (line.find("[PDA 3D]") == -1):
+            line = f.readline();
+    
+        #collect infos
+        for info in exp_info_names:
+            chrome.info[info] = float(f.readline().split(",")[1]); 
+        f.readline()
+        f.readline()
+        
+        time = chrome.info["Start Time"];
+        end_time = min(chrome.info["End Time"], end_time);
+        increment = (end_time - time)/chrome.info["Time Axis Points"];
+        while(True):
+            line = f.readline()
+            #print(time)
+            #collect chrome results
+            try:
+                c = [float(elem) for elem in line.split(",")]
+                if frequencies:
+                    c = np.array(c)[frequencies]
+
+                #collect data only if in desired time interval
+                if (time >= start_time):
+                    if (time < end_time):
+                        temp_data.append(c);
+                    else:
+                        break
+                
+
+                time += increment;
+            except ValueError:
+                break
+            
+
+    chrome.data = np.array(temp_data);
+    chrome.data = chrome.data[::timestep][:]
+
+    print("chromatogram loaded from file: ", chrome.info["filename"])
+        
+
+
+##############################################################################
+# Fit a PARAFAC2 tensor
+# ---------------------
+# To avoid local minima, we initialise and fit multiple models and choose the one
+# with the lowest error
+
+def decompose (tensor):
+    
+    best_err = np.inf
+    decomposition = None
+    ranks = range(2,8)
+    number_of_runs = 5;
+    
+    for run in range(number_of_runs):
+        for rank in ranks:
+            print(f'Training model {run}...')
+            print(f'Testing rank {rank}')
+            trial_decomposition, trial_errs = parafac2(tensor, rank, return_errors=True, tol=1e-8, normalize_factors = True, n_iter_max=500, random_state=run)
+            print(f'Number of iterations: {len(trial_errs)}')
+            print(f'Final error: {trial_errs[-1]}')
+            if best_err > trial_errs[-1]:
+                best_err = trial_errs[-1]
+                err = trial_errs
+                decomposition = trial_decomposition
+                true_rank = rank;
+            print('-------------------------------')
+    print(f'Best model error: {best_err} with rank {true_rank}')
+    
+    est_tensor = tl.parafac2_tensor.parafac2_to_tensor(decomposition)    
+    
+    ##############################################################################
+    # Compute performance metrics# ---------------------------
+    
+    
+    reconstruction_error = la.norm(est_tensor - tensor)
+    recovery_rate = 1 - reconstruction_error/la.norm(tensor)
+    
+    print(f'{recovery_rate:2.0%} of the data is explained by the model')
+    return decomposition, true_rank, err
+
+##############################################################################
+# Visualize the components
+# ------------------------
+def plot_decomposition(decomposition, true_rank, err):
+    est_A, est_projected_Bs, est_C = tl.parafac2_tensor.apply_parafac2_projections(decomposition)[1]
+    sign = np.sign(est_A)
+    est_A = np.abs(est_A)
+    est_projected_Bs = sign[:, np.newaxis]*est_projected_Bs
+    
+    est_A_normalised = est_A/la.norm(est_A, axis=0)
+    est_Bs_normalised = [est_B/la.norm(est_B, axis=0) for est_B in est_projected_Bs]
+    est_C_normalised = est_C/la.norm(est_C, axis=0)
+    
+    # Create plots of each component vector for each mode
+    # (We just look at one of the B_i matrices)
+    
+    
+    fig, axes = plt.subplots(true_rank, 3, figsize=(15, 3*true_rank+1))
+    i = 0 # What slice, B_i, we look at for the B mode
+    
+    for r in range(true_rank):
+        
+        # Plot true and estimated components for mode A
+        axes[r][0].plot((est_A_normalised[:, r]),'--', label='Estimated')
+        
+        # Labels for the different components
+        axes[r][0].set_ylabel(f'Component {r}')
+    
+        # Plot true and estimated components for mode C
+        axes[r][2].plot(est_C_normalised[:, r], '--')
+    
+        A_sign = np.sign(est_A_normalised)
+        # Plot estimated components for mode B (after sign correction)
+        axes[r][1].plot(A_sign[i, r]*est_Bs_normalised[i][:, r], '--')
+    
+    # Titles for the different modes
+    axes[0][0].set_title('Concentration')
+    axes[0][2].set_title('Spectra')
+    axes[0][1].set_title(f'Elution profile (slice {i})')
+    
+    # Create a legend for the entire figure  
+    handles, labels =  axes[r][0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', ncol=2)
+    
+    ##############################################################################
+    # Inspect the convergence rate
+    # ----------------------------
+
+    loss_fig, loss_ax = plt.subplots(figsize=(9, 9/1.6))
+    loss_ax.plot(range(1, len(err)), err[1:])
+    loss_ax.set_xlabel('Iteration number')
+    loss_ax.set_ylabel('Relative reconstruction error')
+    mathematical_expression_of_loss = r"$\frac{\left|\left|\hat{\mathcal{X}}\right|\right|_F}{\left|\left|\mathcal{X}\right|\right|_F}$"
+    loss_ax.set_title(f'Loss plot: {mathematical_expression_of_loss} \n (starting after first iteration)', fontsize=16)
+    xticks = loss_ax.get_xticks()
+    loss_ax.set_xticks([1] + list(xticks[1:]))
+    loss_ax.set_xlim(1, len(err))
+    plt.tight_layout()
+    plt.show()
+
+

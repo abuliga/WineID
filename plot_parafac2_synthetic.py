@@ -3,6 +3,7 @@
 Demonstration of PARAFAC2 with synthetic data from the tensorly library 
 http://tensorly.org/dev/auto_examples/decomposition/plot_parafac2.html#sphx-glr-auto-examples-decomposition-plot-parafac2-py
 =========================
+"""
 
 import numpy as np
 import numpy.linalg as la
