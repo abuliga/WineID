@@ -10,7 +10,9 @@ import tensorly as tl
 import os
 from tensorly.decomposition import parafac2
 import math
-
+import joblib as jlb
+import pickle as pk
+import glob as glb
 
 
 
@@ -20,33 +22,73 @@ exp_info_names =["Interval","Start Time","End Time", "Start Wavelength", "End Wa
 
 
 class chromatogram():
-    freqs = [];
-    info = {};
-    data = [];
+
+    def __init__(self):
+        self.info = {};
+        self.data = [];
+        self.current_start_time = 0;
+        self.current_end_time = 0;
+        self.current_time_resolution = 1;
+    
+    def restore_default(self):
+        self.current_start_time = self.info["Start Time"];
+        self.current_end_time = self.info["End Time"];
+        self.current_time_resolution = 1;
+        
+    def set_start_time(self, start):
+        if(start >= self.info["Start Time"] and start < self.current_end_time):    
+            self.current_start_time = start;
+        else:
+            print("WARNING: trying to set an invalid start time");
+    
+    def set_end_time(self, end):
+        if(end <= self.info["End Time"] and end > self.current_start_time):   
+            self.current_end_time = end;
+        else:
+            print("WARNING: trying to set an invalid end time");
+    
+    
     def n_time(self):
         return np.shape(self.data)[0];
     def n_freqs(self):
         return np.shape(self.data)[1];
-
+    
+    def time_step(self):
+        return (self.info["End Time"] - self.info["Start Time"])/self.info["Time Axis Points"];
+    
+    def sec_to_indx(self, second):
+        if second <= self.info["End Time"]:
+            return int((second - self.info["Start Time"])/self.time_step());
+        else:
+            print("WARNING: chromatogram ends before the requested time; returning end time");
+            return self.info["Time Axis Points"];
+        
+    def get_data(self, frequencies = []):
+        
+        start = self.sec_to_indx(self.current_start_time);
+        end = self.sec_to_indx(self.current_end_time);
+        res = self.current_time_resolution;
+        
+        print(start, end, res);
+        if(frequencies):
+            return self.data[start:end:res, frequencies];
+        else:
+            return self.data[start:end:res, :];
         
 class experiment():
-    freqs = [];
-    chromes = [];
-    
-    def __init__(self, freqs):
-        self.freqs = freqs;
+        
+    def __init__(self, freqs = []):
+        self.chromes = [];
+        self.frequencies = freqs.copy();
         
     def n_chromes(self):
         return len(self.chromes)
     
     def add_chrome(self, chrome):
-        if chrome.freqs == self.freqs:
-            self.chromes.append(chrome);
-        else:
-            print("Could not load chromatogram: frequencies don't match");
-    
+        self.chromes.append(chrome);
+        
     def tensor(self):
-        return [chrome.data for chrome in self.chromes];
+        return [chrome.get_data(self.frequencies) for chrome in self.chromes];
     
     
 def files_in_dir(folder):
@@ -58,7 +100,28 @@ def files_in_dir(folder):
     return files;
 
 
-def import_chromatogram_from_txt(chrome, filename, frequencies = [], start_time = 0, end_time = math.inf, timestep = 1):
+
+def import_folder(folder_name, new_folder, start = 0, end = math.inf, timestep = 1):
+    
+    try:
+        os.mkdir(new_folder);
+    except:
+        True;
+    
+    
+    chrome_files = glb.glob(folder_name + "/*.txt");
+    for filename in chrome_files:
+        shortname = filename.split("\\")[-1];
+        shortname = shortname.split(".")[0];
+        chrome = import_chromatogram_from_txt(filename, start_time = start, end_time = end, timestep = timestep)
+        outfile_name = new_folder + "/" + shortname + ".joblib";
+        jlb.dump(chrome.data, outfile_name);
+
+
+    
+    
+def import_chromatogram_from_txt(filename, frequencies = [], start_time = 0, end_time = math.inf, timestep = 1):
+    chrome = chromatogram();
     temp_data = [];
     chrome.info["filename"] = filename;
     with open(filename) as f:
@@ -75,34 +138,45 @@ def import_chromatogram_from_txt(chrome, filename, frequencies = [], start_time 
         
         time = chrome.info["Start Time"];
         end_time = min(chrome.info["End Time"], end_time);
-        increment = (end_time - time)/chrome.info["Time Axis Points"];
+        increment = (chrome.info["End Time"] - chrome.info["Start Time"])/chrome.info["Time Axis Points"];
+        
+        idx = -1;
         while(True):
             line = f.readline()
-            #print(time)
-            #collect chrome results
-            try:
+
+            try: 
+                #time controls
+                time += increment;
+                idx += 1;
+                if(time < start_time):
+                    continue;
+                if(time >= end_time):
+                    break;
+                if(idx%timestep != 0):
+                    continue;
+                    
+                #data import
                 c = [float(elem) for elem in line.split(",")]
                 if frequencies:
-                    c = np.array(c)[frequencies]
+                    c = np.array(c)[frequencies];
 
-                #collect data only if in desired time interval
-                if (time >= start_time):
-                    if (time < end_time):
-                        temp_data.append(c);
-                    else:
-                        break
-                
-
-                time += increment;
+                temp_data.append(c);
+                   
             except ValueError:
                 break
             
 
+    chrome.info["Start Time"] = max(start_time, chrome.info["Start Time"]);
+    chrome.info["End Time"] = end_time;
+    chrome.current_start_time = chrome.info["Start Time"];
+    chrome.current_end_time = chrome.info["End Time"];
+    chrome.current_time_resolution = 1;
     chrome.data = np.array(temp_data);
-    chrome.data = chrome.data[::timestep][:]
+    print(chrome.data.shape)
+    chrome.info["Time Axis Points"] = chrome.data.shape[0];
 
     print("chromatogram loaded from file: ", chrome.info["filename"])
-        
+    return chrome;        
 
 
 ##############################################################################
@@ -115,22 +189,21 @@ def decompose (tensor):
     
     best_err = np.inf
     decomposition = None
-    ranks = range(2,8)
+    rank = 3
     number_of_runs = 5;
     
     for run in range(number_of_runs):
-        for rank in ranks:
-            print(f'Training model {run}...')
-            print(f'Testing rank {rank}')
-            trial_decomposition, trial_errs = parafac2(tensor, rank, return_errors=True, tol=1e-8, normalize_factors = True, n_iter_max=500, random_state=run)
-            print(f'Number of iterations: {len(trial_errs)}')
-            print(f'Final error: {trial_errs[-1]}')
-            if best_err > trial_errs[-1]:
-                best_err = trial_errs[-1]
-                err = trial_errs
-                decomposition = trial_decomposition
-                true_rank = rank;
-            print('-------------------------------')
+        print(f'Training model {run}...')
+        print(f'Testing rank {rank}')
+        trial_decomposition, trial_errs = parafac2(tensor, rank, return_errors=True, tol=1e-8, normalize_factors = True, n_iter_max=500, random_state=run)
+        print(f'Number of iterations: {len(trial_errs)}')
+        print(f'Final error: {trial_errs[-1]}')
+        if best_err > trial_errs[-1]:
+            best_err = trial_errs[-1]
+            err = trial_errs
+            decomposition = trial_decomposition
+            true_rank = rank;
+        print('-------------------------------')
     print(f'Best model error: {best_err} with rank {true_rank}')
     
     est_tensor = tl.parafac2_tensor.parafac2_to_tensor(decomposition)    

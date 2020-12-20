@@ -10,77 +10,76 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 import utilities as utl
 
 
+class adjustable_plot():
+
+    def __init__(self, chrome, fig, grid, idx, widgets):
+        self.idx = idx;
+        self.chrome = chrome
+        self.fig = fig;
+        self.ax = plt.subplot(grid[widgets*idx:widgets*(idx+1):, 0]);
+        self.ax.margins(x=0)
+        
+        freqs = chrome.n_freqs();
+        timepoints = chrome.n_time();
+        
+        default_freq = 0;
+        default_start = 0;
+        default_end = timepoints;
+        
+        y = get_freq_slice(chrome,default_freq,default_start, default_end);
+        x = range(timepoints);
+        ylim = np.max(chrome.data);
+        
+        self.plot, = self.ax.plot(x, y)
+        self.ax.set_ylim(0, ylim)
+
+        #set sliders
+        axfreq = plt.subplot(grid[widgets*idx + 1, 1])
+        axstart = plt.subplot(grid[widgets*idx + 2, 1])
+        axend = plt.subplot(grid[widgets*idx + 3, 1])
+        resetax = plt.subplot(grid[widgets*idx + 0, 1])
+
+        #set sliders
+        self.freq_slider = Slider(axfreq, 'Freq', 0, freqs, valinit=default_freq)
+        self.start_slider = Slider(axstart, 'start', 0, len(x), valinit=default_start)
+        self.end_slider = Slider(axend, 'end', 0, timepoints , valinit=default_end)
+        self.button = Button(resetax, 'Reset', hovercolor='0.975')
+        
+        self.freq_slider.on_changed(self.update)
+        self.start_slider.on_changed(self.update)
+        self.end_slider.on_changed(self.update)
+        self.button.on_clicked(self.reset)
+
+        
+    def update(self, val):
+        start = int(self.start_slider.val)
+        end = int(self.end_slider.val)
+        freq = int(self.freq_slider.val)
+        new_y = get_freq_slice(self.chrome, freq, start, end);
+        new_x = range(end - start);
+        self.plot.set_data(new_x, new_y)
+        self.ax.relim()
+        self.ax.autoscale_view(True,True,True)
+        self.fig.canvas.draw_idle()     
+    
+    def reset(self, event):
+            self.start_slider.reset();
+            self.end_slider.reset();
+            self.freq_slider.reset();
+
 def get_freq_slice(chrome, freq, start, end):
     return chrome.data[start:end, freq];
 
-
-def show_chromatogram(chrome):
-    fig, ax = plt.subplots()
-    plt.subplots_adjust(left=0.25, bottom=0.25)
-
-    timepoints = chrome.n_time();
-    freqs = chrome.n_freqs();
-
-    def_freq = 0;
-    def_start_time = 0;
-    def_end_time = timepoints;
+def experiment_UI(exp):
+    fig = plt.figure();
     
-    y = get_freq_slice(chrome,def_freq,def_start_time, def_end_time);
-    times = range(timepoints);
-    
-    l, = plt.plot(times, y)
-    ax.set_ylim(0, np.max(chrome.data))
-    ax.margins(x=0)
-    
-    axcolor = 'lightgoldenrodyellow'
-    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
-    axstart = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
-    axend = plt.axes([0.25, 0.2, 0.65, 0.03], facecolor=axcolor)
+    n_chromes = exp.n_chromes();
+    widgets = 4;
+    grid = plt.GridSpec(n_chromes*widgets, 2, wspace = .25, hspace = .20)
 
-    
-    s_freq = Slider(axfreq, 'Freq', 0, freqs, valinit=def_freq)
-    s_start_time = Slider(axstart, 'start', 0, timepoints, valinit=def_start_time)
-    s_end_time = Slider(axend, 'end', 0, timepoints , valinit=def_end_time)
-    
-    def update(val):
-        start = int(s_start_time.val)
-        end = int(s_end_time.val)
-        freq = int(s_freq.val)
-        new_y = get_freq_slice(chrome, freq, start, end);
-        new_x = range(end - start);
-        l.set_data(new_x, new_y)
-        ax.relim()
-        ax.autoscale_view(True,True,True)
-        fig.canvas.draw_idle()
-
-
-
-
+    plots = []
+    for idx, chrome in enumerate(exp.chromes):
+        adj_plot = adjustable_plot(chrome, fig, grid, idx, widgets);
+        plots.append(adj_plot);
         
-    s_freq.on_changed(update)
-    s_start_time.on_changed(update)
-    s_end_time.on_changed(update)
-
-    resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
-    button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
-    
-    
-    def reset(event):
-        s_freq.reset()
-        s_start_time.reset()
-        
-    button.on_clicked(reset)
-    
-    rax = plt.axes([0.025, 0.5, 0.15, 0.15], facecolor=axcolor)
-    radio = RadioButtons(rax, ('red', 'blue', 'green'), active=0)
-    
-    
-    def colorfunc(label):
-        l.set_color(label)
-        fig.canvas.draw_idle()
-    radio.on_clicked(colorfunc)
-    
-    # Initialize plot with correct initial active value
-    colorfunc(radio.value_selected)
-    
     plt.show()

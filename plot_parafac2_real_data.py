@@ -26,11 +26,15 @@ print("files found:", files)
 freqs = [];
 timestep = 3
 exp = utl.experiment(freqs);
-for file in files:
-    chrome = utl.chromatogram();
-    utl.import_chromatogram_from_txt(chrome, file, freqs, start_time = 0, end_time = 20, timestep = timestep);
+
+for idx, file in enumerate(files):
+    print("importing", file)
+    chrome = utl.import_chromatogram_from_txt(file, freqs, start_time = 0, end_time = 10, timestep = 10);
+    print(chrome.get_data().shape);
     exp.add_chrome(chrome);
-    #ui.show_chromatogram(chrome);
-    
+
+ui.experiment_UI(exp);
+
+exit();
 decomposition, true_rank, error = utl.decompose(exp.tensor());
 utl.plot_decomposition(decomposition, true_rank, error)
