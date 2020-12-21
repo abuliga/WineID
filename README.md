@@ -14,7 +14,7 @@ To test the code, just run the python scripts. You will have to change the data 
   * **Parafac2 automatic alignment of (partial) chromatograms**. Automatic selection of parameters.
   * **Parafac2 co-elution solver**
   * Fit evaluation with quality metrics (e.g. core consinstency)
-  * User interface, visualization tools
+  * **User interface, visualization tools**
   * easy extraction of results for post-processing
 
 * Bibliography: 
