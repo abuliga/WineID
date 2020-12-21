@@ -19,6 +19,7 @@ import glob as glb
 
 exp_info_names =["Interval","Start Time","End Time", "Start Wavelength", "End Wavelength","Wavelength Axis Points", "Time Axis Points"];
 
+    
 
 
 class chromatogram():
@@ -47,6 +48,20 @@ class chromatogram():
         else:
             print("WARNING: trying to set an invalid end time");
     
+    def set_start_idx(self, idx):
+        new_time = self.idx_to_sec(idx);
+        print(new_time);
+        self.set_start_time(new_time);
+        
+    def set_end_idx(self, idx):
+        new_time = self.idx_to_sec(idx);
+        print(new_time);
+        self.set_end_time(new_time);
+    
+    def cut(self):
+        start = self.sec_to_indx(self.current_start_time);
+        end = self.sec_to_indx(self.current_end_time);
+        self.data = self.data[start:end:self.current_time_resolution, :]
     
     def n_time(self):
         return np.shape(self.data)[0];
@@ -63,13 +78,19 @@ class chromatogram():
             print("WARNING: chromatogram ends before the requested time; returning end time");
             return self.info["Time Axis Points"];
         
+    def idx_to_sec(self, idx):
+        if idx <= self.info["Time Axis Points"]:
+            return self.info["Start Time"] + idx*self.time_step();
+        else:
+            print("invalid index");
+            return 0;
+        
     def get_data(self, frequencies = []):
         
         start = self.sec_to_indx(self.current_start_time);
         end = self.sec_to_indx(self.current_end_time);
         res = self.current_time_resolution;
-        
-        print(start, end, res);
+        print(start,res,end);
         if(frequencies):
             return self.data[start:end:res, frequencies];
         else:
@@ -79,17 +100,29 @@ class experiment():
         
     def __init__(self, freqs = []):
         self.chromes = [];
+        self.chromenames = [];
         self.frequencies = freqs.copy();
+        self.peaks = [];
         
     def n_chromes(self):
         return len(self.chromes)
     
-    def add_chrome(self, chrome):
-        self.chromes.append(chrome);
-        
-    def tensor(self):
-        return [chrome.get_data(self.frequencies) for chrome in self.chromes];
+    def n_freqs(self):
+        return (self.chromes[0]).n_freqs();
     
+    def add_freq(self, freq):
+        if not(freq in self.frequencies):
+            self.frequencies.append(freq);
+    
+    def add_chrome(self, chrome):
+        if not(chrome.info["chromename"] in self.chromenames):
+            self.chromes.append(chrome);
+            self.chromenames.append(chrome.info["chromename"])
+        else:
+            print("WARNING: This experiment already contains a chromatogram with this name")
+        
+    def tensor(self, freqs):
+        return [chrome.get_data(freqs) for chrome in self.chromes];
     
 def files_in_dir(folder):
     files = [];
@@ -108,7 +141,6 @@ def import_folder(folder_name, new_folder, start = 0, end = math.inf, timestep =
     except:
         True;
     
-    
     chrome_files = glb.glob(folder_name + "/*.txt");
     for filename in chrome_files:
         shortname = filename.split("\\")[-1];
@@ -123,7 +155,10 @@ def import_folder(folder_name, new_folder, start = 0, end = math.inf, timestep =
 def import_chromatogram_from_txt(filename, frequencies = [], start_time = 0, end_time = math.inf, timestep = 1):
     chrome = chromatogram();
     temp_data = [];
+    chromename = filename.split("\\")[-1];
+    chromename = chromename.split(".")[0];
     chrome.info["filename"] = filename;
+    chrome.info["chromename"] = chromename;
     with open(filename) as f:
         #search for 3D data
         line = ""
@@ -189,34 +224,28 @@ def decompose (tensor):
     
     best_err = np.inf
     decomposition = None
-    rank = 3
-    number_of_runs = 5;
+    rank = 2
+    number_of_runs = 10;
     
     for run in range(number_of_runs):
         print(f'Training model {run}...')
         print(f'Testing rank {rank}')
-        trial_decomposition, trial_errs = parafac2(tensor, rank, return_errors=True, tol=1e-8, normalize_factors = True, n_iter_max=500, random_state=run)
+        trial_decomposition, trial_errs = parafac2(tensor, rank, return_errors=True, tol=1e-9, normalize_factors = True, n_iter_max=300, random_state=run)
         print(f'Number of iterations: {len(trial_errs)}')
         print(f'Final error: {trial_errs[-1]}')
         if best_err > trial_errs[-1]:
             best_err = trial_errs[-1]
             err = trial_errs
             decomposition = trial_decomposition
-            true_rank = rank;
         print('-------------------------------')
-    print(f'Best model error: {best_err} with rank {true_rank}')
+    print(f'Best model error: {best_err} with rank {rank}')
     
-    est_tensor = tl.parafac2_tensor.parafac2_to_tensor(decomposition)    
+    #est_tensor = tl.parafac2_tensor.parafac2_to_tensor(decomposition)    
     
     ##############################################################################
     # Compute performance metrics# ---------------------------
-    
-    
-    reconstruction_error = la.norm(est_tensor - tensor)
-    recovery_rate = 1 - reconstruction_error/la.norm(tensor)
-    
-    print(f'{recovery_rate:2.0%} of the data is explained by the model')
-    return decomposition, true_rank, err
+
+    return decomposition, rank, err
 
 ##############################################################################
 # Visualize the components
@@ -225,7 +254,7 @@ def plot_decomposition(decomposition, true_rank, err):
     est_A, est_projected_Bs, est_C = tl.parafac2_tensor.apply_parafac2_projections(decomposition)[1]
     sign = np.sign(est_A)
     est_A = np.abs(est_A)
-    est_projected_Bs = sign[:, np.newaxis]*est_projected_Bs
+#    est_projected_Bs = sign[:, np.newaxis]*est_projected_Bs
     
     est_A_normalised = est_A/la.norm(est_A, axis=0)
     est_Bs_normalised = [est_B/la.norm(est_B, axis=0) for est_B in est_projected_Bs]
