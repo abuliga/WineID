@@ -324,7 +324,7 @@ def create_columns(decomposition,freqs,true_rank):
     est_A_normalised = est_A/la.norm(est_A, axis=0)
     est_Bs_normalised = [est_B/la.norm(est_B, axis=0) for est_B in est_projected_Bs]
     est_C_normalised = est_C/la.norm(est_C, axis=0)
-    for i in range(len(freqs)):
+    for i in range(len(decomposition[2])):
         for j in range(true_rank):
 #        d.append({'spec_val_freq'+str(freqs[i]):est_C_normalised[i][j]})
             component = [z[j] for z in est_Bs_normalised[i]]
