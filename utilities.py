@@ -13,7 +13,10 @@ import math
 import joblib as jlb
 import pickle as pk
 import glob as glb
-
+import numpy as np
+from scipy.integrate import simps
+from numpy import trapz
+import pandas as pd
 
 
 
@@ -262,7 +265,9 @@ def plot_decomposition(decomposition, true_rank, err):
     
     # Create plots of each component vector for each mode
     # (We just look at one of the B_i matrices)
-    
+    print(est_A_normalised)
+    print(est_Bs_normalised)
+    print(est_C_normalised)
     
     fig, axes = plt.subplots(true_rank, 3, figsize=(15, 3*true_rank+1))
     i = 0 # What slice, B_i, we look at for the B mode
@@ -306,5 +311,40 @@ def plot_decomposition(decomposition, true_rank, err):
     loss_ax.set_xlim(1, len(err))
     plt.tight_layout()
     plt.show()
+    
 
-
+def create_columns(decomposition,freqs,true_rank):
+    d = []
+    n=0
+    est_A, est_projected_Bs, est_C = tl.parafac2_tensor.apply_parafac2_projections(decomposition)[1]
+    sign = np.sign(est_A)
+    est_A = np.abs(est_A)
+#    est_projected_Bs = sign[:, np.newaxis]*est_projected_Bs
+    
+    est_A_normalised = est_A/la.norm(est_A, axis=0)
+    est_Bs_normalised = [est_B/la.norm(est_B, axis=0) for est_B in est_projected_Bs]
+    est_C_normalised = est_C/la.norm(est_C, axis=0)
+    for i in range(len(freqs)):
+        for j in range(true_rank):
+#        d.append({'spec_val_freq'+str(freqs[i]):est_C_normalised[i][j]})
+            component = [z[j] for z in est_Bs_normalised[i]]
+            maximum = max(component)
+            area = simps(component, dx=len(component))
+            d.append({
+                'nr_of_frequencies':len(freqs),
+                'nr_chrgrams':len(decomposition[2]),
+                'nr_time_points_chrgram'+str(i+1):int(len(decomposition[2][i])),
+                'component':'Component'+str(j+1),
+                'chrgram'+str(i+1):est_A_normalised[i,j],
+                'elution_peak_pos_chrgram'+str(i+1):component.index(maximum),
+                'elution_peak_val_chrgram'+str(i+1):maximum,
+                'area_under_peak_chrgram'+str(i+1):area
+            })
+        
+    df = pd.DataFrame(d)
+    df = df.groupby('component').first()
+    for x in range(len(freqs)): 
+        df.insert(n,'spec_value_freq'+str(freqs[x]),est_C_normalised[x])
+        n+=1
+    df.to_csv('out.csv')
+    return df

@@ -4,7 +4,7 @@ Created on Thu Nov  5 17:41:53 2020
 
 @author: Paolo
 """
-
+#!pip install tensorly
 import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ import utilities as utl
 import wineUI as ui
 import math
 
-folder = "C:/Users/Paolo/OneDrive/Desktop/seq_1/"; 
+folder = "C:/Users/Andrei/WineID/data/"; 
 
 files = utl.files_in_dir(folder)
 print("files found:", files)
@@ -23,7 +23,8 @@ print("files found:", files)
             #IMPORT PHASE
 ##############################################################################
 
-freqs = [50,100,150];
+freqs = [50,100,150]
+print(freqs)
 timestep = 3
 exp = utl.experiment(freqs);
 
@@ -37,3 +38,4 @@ ui.experiment_UI(exp);
 
 decomposition, true_rank, error = utl.decompose(exp.tensor([]));
 utl.plot_decomposition(decomposition, true_rank, error)
+utl.create_columns(decomposition,freqs,true_rank)
