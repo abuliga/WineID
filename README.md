@@ -15,7 +15,7 @@ To test the code, just run the python scripts. You will have to change the data 
   * **Parafac2 co-elution solver**
   * Fit evaluation with quality metrics (e.g. core consinstency)
   * **User interface, visualization tools**
-  * easy extraction of results for post-processing
+  * **easy extraction of results for post-processing**
 
 * Bibliography: 
   * José Manuel Amigo, Thomas Skov, and Rasmus Bro, ChroMATHography: Solving Chromatographic Issues with Mathematical Models and Intuitive Graphics
