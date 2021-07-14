@@ -15,7 +15,7 @@ import utilities as utl
 import wineUI as ui
 import math
 
-folder = "C:/Users/Andrei/WineID/data/"; 
+folder = "./data/"; 
 
 files = utl.files_in_dir(folder)
 print("files found:", files)
